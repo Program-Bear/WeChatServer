@@ -1,5 +1,6 @@
 file(REMOVE_RECURSE
   "CMakeFiles/WeChat.dir/main.cpp.o"
+  "CMakeFiles/WeChat.dir/Client.cpp.o"
   "WeChat.pdb"
   "WeChat"
 )

@@ -12,7 +12,9 @@
 #include <string.h>
 #include <thread>
 #include <list>
-#define SOCK_PORT 9900
+#include "Client.h"
+#include "Protocal.h"
+#define SOCK_PORT 9897
 #define BUFFER_LENGTH 1024
 #define MAX_CONN_LIMIT 512
 #define IP "127.0.0.1"
@@ -20,14 +22,14 @@
 using namespace std;
 
 std:: list<int> current_client;
-sockaddr_in s_addr_in;
-socklen_t len;
+//sockaddr_in s_addr_in;
+//socklen_t len;
+
 
 
 void sendMess(int target, char* content){
     char buf[1024];
     memset(buf,0,sizeof(buf));
-    //fgets(buf,sizeof(buf),stdin);
     strcpy(buf, content);
     std::list<int>:: iterator it;
     cout << "begin to send" << buf << endl;
@@ -38,6 +40,7 @@ void sendMess(int target, char* content){
     }
     memset(buf,0,sizeof(buf));
 }
+
 void getData(){
     struct timeval tv;
     tv.tv_sec = 2;
@@ -61,13 +64,17 @@ void getData(){
         }
         else{
             char buf[1024];
-            memset(buf,0,sizeof(buf));
+            memset(buf, 0, sizeof(buf));
             int len = recv(*it, buf, sizeof(buf), 0);
             if (len == 0){
-                printf("disconnect of %d", *it);
+                //printf("disconnect of %d", *it);
+                shutdown(*it, SHUT_RDWR);
             }else {
-                printf("get message from %d, %s", *it, buf);
-                sendMess(5, buf);
+                printf("get message from %d\n", *it);
+                cout << buf+24 << endl;
+                Protocal* now_protocal = new Protocal(buf);
+                cout << " command is " << now_protocal ->get_command() << endl;
+                cout << "data is " << now_protocal -> get_data() << endl;
             }
         }
     }
@@ -84,6 +91,8 @@ int main(void){
         exit(1);
         //cout << "socket error!" << endl;
     }
+    sockaddr_in s_addr_in;
+    socklen_t len;
 
     memset(&s_addr_in, 0, sizeof(s_addr_in));
     s_addr_in.sin_family = AF_INET;

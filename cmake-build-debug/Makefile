@@ -123,6 +123,33 @@ WeChat/fast:
 	$(MAKE) -f CMakeFiles/WeChat.dir/build.make CMakeFiles/WeChat.dir/build
 .PHONY : WeChat/fast
 
+Client.o: Client.cpp.o
+
+.PHONY : Client.o
+
+# target to build an object file
+Client.cpp.o:
+	$(MAKE) -f CMakeFiles/WeChat.dir/build.make CMakeFiles/WeChat.dir/Client.cpp.o
+.PHONY : Client.cpp.o
+
+Client.i: Client.cpp.i
+
+.PHONY : Client.i
+
+# target to preprocess a source file
+Client.cpp.i:
+	$(MAKE) -f CMakeFiles/WeChat.dir/build.make CMakeFiles/WeChat.dir/Client.cpp.i
+.PHONY : Client.cpp.i
+
+Client.s: Client.cpp.s
+
+.PHONY : Client.s
+
+# target to generate assembly for a file
+Client.cpp.s:
+	$(MAKE) -f CMakeFiles/WeChat.dir/build.make CMakeFiles/WeChat.dir/Client.cpp.s
+.PHONY : Client.cpp.s
+
 main.o: main.cpp.o
 
 .PHONY : main.o
@@ -159,6 +186,9 @@ help:
 	@echo "... rebuild_cache"
 	@echo "... edit_cache"
 	@echo "... WeChat"
+	@echo "... Client.o"
+	@echo "... Client.i"
+	@echo "... Client.s"
 	@echo "... main.o"
 	@echo "... main.i"
 	@echo "... main.s"

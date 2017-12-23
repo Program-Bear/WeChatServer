@@ -6,6 +6,32 @@
 
 #IncludeRegexTransform: 
 
+/Users/victor/CLionProjects/WeChat/Client.cpp
+Client.h
+/Users/victor/CLionProjects/WeChat/Client.h
+
+/Users/victor/CLionProjects/WeChat/Client.h
+list
+-
+
+/Users/victor/CLionProjects/WeChat/Protocal.h
+iostream
+-
+cstdio
+-
+cstdlib
+-
+string.h
+-
+command_def.h
+/Users/victor/CLionProjects/WeChat/command_def.h
+ack_def.h
+/Users/victor/CLionProjects/WeChat/ack_def.h
+
+/Users/victor/CLionProjects/WeChat/ack_def.h
+
+/Users/victor/CLionProjects/WeChat/command_def.h
+
 /Users/victor/CLionProjects/WeChat/main.cpp
 iostream
 -
@@ -35,4 +61,8 @@ thread
 -
 list
 -
+Client.h
+/Users/victor/CLionProjects/WeChat/Client.h
+Protocal.h
+/Users/victor/CLionProjects/WeChat/Protocal.h
 
