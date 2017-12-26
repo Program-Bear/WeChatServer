@@ -18,6 +18,8 @@
 #define BUFFER_LENGTH 1024*1024*100
 #define MAX_CONN_LIMIT 512
 #define MAX_CLIENT 200
+#define CHUNK_SIZE 1024*1024
+#define BUFFER_SIZE 2048
 #define IP "127.0.0.1"
 
 using namespace std;
@@ -47,7 +49,7 @@ int get_socket(char* user_name){
     return -1;
 }
 
-Client* get_client(char* user_name){
+Client* get_client(const char* user_name){
     std::list <Client*>::iterator it;
     for(it = current_client.begin(); it != current_client.end();it++){
         Client* now_client = *it;
@@ -81,11 +83,17 @@ void sendMess(int target, char* content, int len){
     send(target, buf, len, 0);
 }
 */
-char buf[BUFFER_LENGTH];
 void getData(){
     struct timeval tv;
-    tv.tv_sec = 0.05;
+    tv.tv_sec = 0.02;
     tv.tv_usec = 0;
+    bool is_file = false;
+
+    FILE* fp;
+    string file_name;
+    string user_name;
+    string now_path;
+
     std::list<int>:: iterator it;
     for (it = current_socket.begin(); it != current_socket.end(); it++){
         fd_set rfds;
@@ -104,18 +112,39 @@ void getData(){
             //cout << "No Message get!" << endl;
         }
         else{
-            memset(buf, 0, sizeof(buf));
-            int len = recv(*it, buf, sizeof(buf), 0);
+            char* buf = new char[BUFFER_SIZE];
+            bzero(buf, BUFFER_SIZE);
+
+            int len = recv(*it, buf, BUFFER_SIZE, 0);
+
             if (len == 0){
-                //printf("disconnect of %d", *it);
                 shutdown(*it, SHUT_RDWR);
             }else {
                 printf("get message from %d\n", *it);
-               // cout << "After send total length" << buf+20 << endl;
-                cout << "After send size: " << strlen(buf + 24) << endl;
-                Protocal* now_protocal = new Protocal(buf);
 
+                //cout << "After send size: " << strlen(buf + 24) << endl;
+
+                int* command_place = new int();
+                memcpy(command_place, buf, 4);
+                int now_command = *command_place;
+
+                int * total_len_place = new int();
+                memcpy(total_len_place,buf + 220, 4);
+                int now_len = *total_len_place;
+                if(now_len == 0){
+                    cout << "empty packet" << endl;
+                    continue;
+                }
+
+                if(now_command > 200 || now_command < 0) {
+                    cout << buf << endl;
+                    cout << "------------------------------------" << endl;
+                    continue;
+                }
+
+                Protocal *now_protocal = new Protocal(buf);
                 COMMAND_DEF command = now_protocal ->get_command();
+                cout << "command is: " << command << endl;
                 switch(command){
                     case SIGN_UP:
                     {
@@ -368,41 +397,66 @@ void getData(){
                         break;
                     }
 
-                    case FILESEND:
+                    case FILE_START:
                     {
-                        cout << "After Send: " << now_protocal ->get_length() << endl;
+                        if (is_file) {
+                            break;
+                        }
+                        is_file = true;
                         int source_id = now_protocal ->get_source();
-                        Client* source_client = get_client(source_id);
 
-                        char* content = strtok(now_protocal ->get_data(),"&");
-                        char* file_name = strtok(NULL,"&");
-                        char* user_name = strtok(NULL, "&");
+                        file_name = now_protocal ->get_file_name();
+                        user_name = now_protocal ->get_user_name();
 
                         cout << "file_name: " << file_name << " user_name: " << user_name << endl;
+                        Client* target_client = get_client(user_name.c_str());
+                        Client* source_client = get_client(now_protocal ->get_source());
 
-                        Client* target_client = get_client(user_name);
+                        now_path = "./temp/" + string(file_name);
+
+                        cout << "file_path: " << now_path << endl;
+
                         if(target_client == NULL){
                             cout << "Exception" << endl;
                             break;
                         }
+                        fp = fopen(now_path.c_str(),"wb+");
 
-                        string file_path = "./temp/" + string(file_name);
+                        char* buffer = new char[BUFFER_SIZE];
+                        bzero(buffer,BUFFER_SIZE);
+                        int length = recv(*it, buffer, BUFFER_SIZE,0);
 
-                        cout << "file_path: " << file_path << endl;
+                        do{
+                            cout << "get file packet" << endl;
+                            cout << length << endl;
+                            fwrite(buffer, sizeof(char), length, fp);
+                            //if(length < BUFFER_SIZE) break;
+                            bzero(buffer, BUFFER_SIZE);
+                            if(length != 1024 && length != 2048) break;
 
-                        Protocal::write_file(file_path, content, now_protocal ->get_data_length());
+                            length = recv(*it, buffer, BUFFER_SIZE,0);
+                            cout << "next judge: " << length << endl;
+                        }while(length > 0);
 
-                        cout << "write finish!" << endl;
+
+
+                        cout << "File end" << endl;
+                        target_client->set_file_buffer(now_path,user_name.c_str(),file_name.c_str());
+
+                        Protocal* file_end = new Protocal(FILE_END_ACK,SUCCESS,-1,-1,NULL,0);
+                        cout << "Send message to: " << source_client->get_id() << endl;
+                        send(source_client ->get_id() ,file_end ->send_data(), file_end->get_length(), 0);
+
                         if(target_client ->log_in()){
-                            Protocal* _newfile =new Protocal(NEW_FILE, SUCCESS, source_id, -1, file_name, strlen(file_name));
-                            send(target_client ->get_id(),_newfile ->send_data(), _newfile ->get_length(), 0);
-                        }else{
-                            target_client ->set_file_buffer(file_path,user_name,file_name);
+                            Protocal*new_file = new Protocal(NEW_FILE,SUCCESS,-1,-1,NULL,0);
+                            send(target_client->get_id(),new_file ->send_data(),new_file->get_length(),0);
                         }
 
-                        Protocal* file_ack = new Protocal(FILE_END_ACK, SUCCESS, source_id, -1,NULL, 0);
-                        send(source_client ->get_id(),file_ack ->send_data(), file_ack ->get_length(), 0);
+                        fclose(fp);
+                        cout << "close file" << endl;
+                        is_file = false;
                         break;
+
                     }
 
                     case REMESSAGE:

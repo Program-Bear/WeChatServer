@@ -96,7 +96,7 @@ public:
     void set_name_buffer(char* buffer){
         memcpy(name_buffer, buffer, strlen(buffer));
     }
-    void set_file_buffer(string _path, char* user_name, char* file_name){
+    void set_file_buffer(string _path, const char* user_name, const char* file_name){
         memcpy(file_user_name_buffer, user_name, strlen(user_name));
         memcpy(file_name_buffer, file_name, strlen(file_name));
         cout << "set1 finish" << endl;
