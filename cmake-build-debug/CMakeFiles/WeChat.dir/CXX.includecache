@@ -63,4 +63,6 @@ Client.h
 /Users/victor/CLionProjects/WeChat/Client.h
 Protocal.h
 /Users/victor/CLionProjects/WeChat/Protocal.h
+sys/stat.h
+-
 

@@ -99,9 +99,14 @@ public:
     void set_file_buffer(string _path, const char* user_name, const char* file_name){
         memcpy(file_user_name_buffer, user_name, strlen(user_name));
         memcpy(file_name_buffer, file_name, strlen(file_name));
-        cout << "set1 finish" << endl;
+        cout << "set username finish " << "name is "  << user_name << endl;
         file_path = _path;
-        cout << "set2 finish" << endl;
+        cout << "set filename finish " << "name is " << file_name << endl;
+    }
+    void flush_file_buffer(){
+        file_path = "";
+        bzero(file_user_name_buffer,100);
+        bzero(file_name_buffer,100);
     }
     int get_id(){
         return socket_id;

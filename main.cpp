@@ -14,14 +14,26 @@
 #include <list>
 #include "Client.h"
 #include "Protocal.h"
-#define SOCK_PORT 9890
+#define SOCK_PORT 9886
 #define BUFFER_LENGTH 1024*1024*100
 #define MAX_CONN_LIMIT 512
 #define MAX_CLIENT 200
-#define CHUNK_SIZE 1024*1024
+#define CHUNK_SIZE 1024
 #define BUFFER_SIZE 2048
 #define IP "127.0.0.1"
+#include <sys/stat.h>
 
+unsigned long get_file_size(const char *path)
+{
+    unsigned long filesize = -1;
+    struct stat statbuff;
+    if(stat(path, &statbuff) < 0){
+        return filesize;
+    }else{
+        filesize = statbuff.st_size;
+    }
+    return filesize;
+}
 using namespace std;
 
 std:: list<int> current_socket;
@@ -89,11 +101,6 @@ void getData(){
     tv.tv_usec = 0;
     bool is_file = false;
 
-    FILE* fp;
-    string file_name;
-    string user_name;
-    string now_path;
-
     std::list<int>:: iterator it;
     for (it = current_socket.begin(); it != current_socket.end(); it++){
         fd_set rfds;
@@ -137,8 +144,8 @@ void getData(){
                 }
 
                 if(now_command > 200 || now_command < 0) {
-                    cout << buf << endl;
-                    cout << "------------------------------------" << endl;
+                   // cout << buf << endl;
+                    cout << "--------------ERROR----------------------" << endl;
                     continue;
                 }
 
@@ -405,14 +412,14 @@ void getData(){
                         is_file = true;
                         int source_id = now_protocal ->get_source();
 
-                        file_name = now_protocal ->get_file_name();
-                        user_name = now_protocal ->get_user_name();
+                        string file_name = now_protocal ->get_file_name();
+                        string user_name = now_protocal ->get_user_name();
 
                         cout << "file_name: " << file_name << " user_name: " << user_name << endl;
                         Client* target_client = get_client(user_name.c_str());
                         Client* source_client = get_client(now_protocal ->get_source());
 
-                        now_path = "./temp/" + string(file_name);
+                        string now_path = "./temp/" + string(file_name);
 
                         cout << "file_path: " << now_path << endl;
 
@@ -420,7 +427,7 @@ void getData(){
                             cout << "Exception" << endl;
                             break;
                         }
-                        fp = fopen(now_path.c_str(),"wb+");
+                        FILE* fp = fopen(now_path.c_str(),"wb+");
 
                         char* buffer = new char[BUFFER_SIZE];
                         bzero(buffer,BUFFER_SIZE);
@@ -437,11 +444,9 @@ void getData(){
                             length = recv(*it, buffer, BUFFER_SIZE,0);
                             cout << "next judge: " << length << endl;
                         }while(length > 0);
-
-
-
                         cout << "File end" << endl;
-                        target_client->set_file_buffer(now_path,user_name.c_str(),file_name.c_str());
+
+                        target_client->set_file_buffer(now_path,source_client ->get_name(),file_name.c_str());
 
                         Protocal* file_end = new Protocal(FILE_END_ACK,SUCCESS,-1,-1,NULL,0);
                         cout << "Send message to: " << source_client->get_id() << endl;
@@ -457,6 +462,52 @@ void getData(){
                         is_file = false;
                         break;
 
+                    }
+                    case TESTFILE:{
+                        int source_id = now_protocal ->get_source();
+                        int ack = FAIL;
+                        Client* source_client = get_client(source_id);
+                        //string now_path = source_client ->get_file_path();
+                        string now_path = "./temp/Archive.zip";
+                        string file_name = source_client ->get_file_name();
+                        //string file_name = "Archive.zip";
+                        string user_name = source_client ->get_fileuser_name();
+                        //string user_name = "weijy2";
+                        cout << "path: " << now_path << " file_name: " << file_name << " user_name: " << user_name << endl;
+                        //source_client ->set_file_buffer("./temp/Archive.zip", "Archive.zip", "weijy2");
+
+                        if(access(now_path.c_str(),F_OK) == 0){
+                            cout << "here" << endl;
+                            int size = get_file_size(now_path.c_str());
+                            Protocal* refile_start = new Protocal(REFILE_ACK,SUCCESS,-1,size,"",file_name,user_name,0);
+                            send(source_id, refile_start ->send_data(), refile_start ->get_length(), 0);
+                            cout << "Refile Transfer Start" << endl;
+
+                            char* chunk = new char[CHUNK_SIZE];
+                            int length = 0;
+                            bzero(chunk,CHUNK_SIZE);
+
+
+                            FILE* fp = fopen(now_path.c_str(),"rb");
+                            //int temp = 0;
+                            while((length = fread(chunk,sizeof(char),CHUNK_SIZE,fp)) > 0){
+                                cout << "Send Packet of length: " << length << endl;
+                                if(send(source_id,chunk,length,0) == -1){
+                                    cout << "Socket Error" << endl;
+                                }
+                                //temp += length;
+                                bzero(chunk,length);
+                            }
+                            //cout << "temp: " << temp << endl;
+                            cout << "Send finish" << endl;
+                            fclose(fp);
+                        }else{
+                            cout << "Invalid file path!" << endl;
+                            Protocal* re_file = new Protocal(REFILE_ACK,FAIL,-1,-1,NULL,0);
+                            send(source_id,re_file ->send_data(),re_file->get_length(),0);
+                        }
+
+                        break;
                     }
 
                     case REMESSAGE:
@@ -486,11 +537,6 @@ void getData(){
                         break;
                     }
 
-                    case REFILE:
-                    {
-
-                    }
-
                     case PROFILE:
                     {
                         int source_id = now_protocal ->get_source();
@@ -515,7 +561,56 @@ void getData(){
                         send(source_id, _profile ->send_data(), _profile ->get_length(), 0);
                         break;
                     }
+                    case REFILE:
+                    {
+                        int source_id = now_protocal ->get_source();
+                        int ack = FAIL;
+                        Client* source_client = get_client(source_id);
+                        //source_client ->set_file_buffer("./temp/Archive.zip", "weijy2", "Archive.zip");
+                        string now_path = source_client ->get_file_path();
+                        //string now_path = "./temp/Archive.zip";
+                        string file_name = source_client ->get_file_name();
+                        //string file_name = "Archive.zip";
+                        string user_name = source_client ->get_fileuser_name();
+                        //string user_name = "weijy2";
+                        cout << "path: " << now_path << " file_name: " << file_name << " user_name: " << user_name << endl;
+                        //source_client ->set_file_buffer("./temp/Archive.zip", "Archive.zip", "weijy2");
 
+                        if(access(now_path.c_str(),F_OK) == 0){
+                            cout << "here" << endl;
+                            int size = get_file_size(now_path.c_str());
+                            Protocal* refile_start = new Protocal(REFILE_ACK,SUCCESS,-1,size,"",file_name,user_name,0);
+                            send(source_id, refile_start ->send_data(), refile_start ->get_length(), 0);
+                            cout << "Refile Transfer Start" << endl;
+
+                            char* chunk = new char[CHUNK_SIZE];
+                            int length = 0;
+                            bzero(chunk,CHUNK_SIZE);
+
+
+                            FILE* fp = fopen(now_path.c_str(),"rb");
+                            int temp = 0;
+                            while((length = fread(chunk,sizeof(char),CHUNK_SIZE,fp)) > 0){
+                                //cout << "Send Packet of length: " << length << endl;
+                                if(send(source_id,chunk,length,0) == -1){
+                                    cout << "Socket Error" << endl;
+                                }
+                                temp += length;
+                                bzero(chunk,length);
+                            }
+                            cout << "temp: " << temp << endl;
+                            cout << "Send finish" << endl;
+                            fclose(fp);
+                            source_client ->flush_file_buffer();
+                        }else{
+                            cout << "Invalid file path!" << endl;
+                            Protocal* re_file = new Protocal(REFILE_ACK,FAIL,-1,-1,NULL,0);
+                            send(source_id,re_file ->send_data(),re_file->get_length(),0);
+                        }
+
+                        break;
+
+                    }
 
                 }
 
